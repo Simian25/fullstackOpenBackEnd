@@ -1,6 +1,18 @@
 const express = require('express')
+const morgan = require('morgan');
 const app = express()
-app.use(express.json());
+
+
+morgan.token('post', (req) => {
+  console.log(req.body)
+  if(req.method==='POST'){
+    return JSON.stringify(req.body)
+  }
+})
+
+
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms :post '))
+app.use(express.json())
 let persons = [
     { 
       "name": "Arto Hellas", 
@@ -23,7 +35,7 @@ let persons = [
       "id": 4
     }
   ]
-
+ 
   const generateId = () => {
     const maxId = persons.length > 0
       ? Math.max(...persons.map(n => n.id))
