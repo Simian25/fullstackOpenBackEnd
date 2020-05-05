@@ -10,7 +10,7 @@ morgan.token('post', (req) => {
   }
 })
 
-
+app.use(express.static('build'))
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :post '))
 app.use(express.json())
 let persons = [
