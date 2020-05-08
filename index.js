@@ -1,5 +1,6 @@
-require('dotenv').config()
-const cors = require('cors')
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config()
+}
 const express = require('express')
 const morgan = require('morgan')
 const app = express()
@@ -12,10 +13,9 @@ morgan.token('post', (req) => {
   }
 })
 
-app.use(cors())
 app.use(express.json())
 app.use(express.static('build'))
-//app.use(morgan(':method :url :status :res[content-length] - :response-time ms :post '))
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms :post '))
 
 const Person = require('./modules/person')
 
@@ -39,7 +39,7 @@ const Person = require('./modules/person')
 app.get('/api/persons',(req,res)=>{
     Person.find({}).then(persons => res.json(persons))
 })
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response,next) => {
   const body = request.body
 
   if (!body.name||!body.number) {
@@ -54,6 +54,7 @@ app.post('/api/persons', (request, response) => {
   })
 
   person.save().then(savedPerson => response.json(savedPerson.toJSON()))
+  .catch(err => next(err));
 })
 
 
@@ -70,9 +71,9 @@ app.get('/api/persons/:id', (request, response, next) => {
       })
       .catch(error => next(error))
   })
-app.delete('/api/persons/:id',(req,res)=>{
+app.delete('/api/persons/:id',(req,res,next)=>{
   Person.findByIdAndRemove(req.params.id).then(result => {
-      response.status(204).end();
+      res.status(204).end();
   })
   .catch(error => next(error));
 })
@@ -83,23 +84,25 @@ app.get('/info',(req,res)=>{
     
 })
 
-const unknownEndpoint = (request, res) => {
-    res.status(404).send({ error: 'unknown endpoint' })
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: 'unknown endpoint' })
+}
+
+app.use(unknownEndpoint)
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError' && error.kind == 'ObjectId') {
+    return response.status(400).send({ error: 'malformatted id' })
+  }  else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
   }
-  
-  app.use(unknownEndpoint)
-  
-  const errorHandler = (error, request, res, next) => {
-    console.error(error.message)
-  
-    if (error.name === 'CastError' && error.kind == 'ObjectId') {
-      return response.status(400).send({ error: 'malformatted id' })
-    } 
-  
-    next(error)
-  }
-  
-  app.use(errorHandler)
+
+  next(error)
+}
+
+app.use(errorHandler)
 
 
 
